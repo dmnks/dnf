@@ -147,6 +147,12 @@ def log_method_call(log_call):
         return new_func
     return wrapper
 
+def loop(sequence):
+    """Return a generator that loops over the sequence infinitely."""
+    while sequence:
+        for element in sequence:
+            yield element
+
 def mapall(fn, *seq):
     """Like functools.map(), but return a list instead of an iterator.
 

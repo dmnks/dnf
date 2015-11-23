@@ -19,6 +19,7 @@ from __future__ import unicode_literals
 from dnf.i18n import _, ucd
 from dnf.pycomp import basestring
 import dnf.transaction
+import dnf.util
 import rpm
 import os
 import fcntl
@@ -169,6 +170,9 @@ class RPMTransaction(object):
 
         self._setupOutputLogging(base.conf.rpmverbosity)
         self._ts_done = None
+        # An iterator used to track the current element in this transaction
+        self._ts_iter = None
+        self._current_te = None
 
     def _fdSetCloseOnExec(self, fd):
         """ Set the close on exec. flag for a filedescriptor. """
@@ -409,6 +413,8 @@ class RPMTransaction(object):
             self._transStop( bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_OPEN_FILE:
             return self._instOpenFile( bytes, total, h )
+        elif what == rpm.RPMCALLBACK_INST_START:
+            self._instStart( bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_CLOSE_FILE:
             self._instCloseFile(  bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_PROGRESS:
@@ -430,8 +436,10 @@ class RPMTransaction(object):
         elif what == rpm.RPMCALLBACK_SCRIPT_STOP:
             self._scriptStop(bytes, total, h);
 
-
     def _transStart(self, bytes, total, h):
+        # Use loop() instead of iter() since the transaction set is iterated
+        # twice during the RPM test mode.
+        self._ts_iter = dnf.util.loop([te for te in self.base.ts])
         self.total_actions = total
         if self.test: return
         self.trans_running = True
@@ -460,6 +468,9 @@ class RPMTransaction(object):
                 self.complete_actions += 1
                 self.installed_pkg_names.add(pkg.name)
             return self.fd.fileno()
+
+    def _instStart(self, bytes, total, h):
+        self._current_te = next(self._ts_iter)
 
     def _instCloseFile(self, bytes, total, h):
         pkg, state, tsi = self._extract_tsi_cbkey(h)
@@ -493,7 +504,7 @@ class RPMTransaction(object):
                 self.total_actions)
 
     def _unInstStart(self, bytes, total, h):
-        pass
+        self._current_te = next(self._ts_iter)
 
     def _unInstProgress(self, bytes, total, h):
         pass
