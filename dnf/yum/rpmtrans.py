@@ -230,23 +230,23 @@ class RPMTransaction(object):
         if isinstance(cbkey, dnf.transaction.TransactionItem):
             return self._extract_tsi_cbkey(cbkey)
         else:
-            return self._extract_str_cbkey(cbkey)
+            return self._match_tsi()
 
     @staticmethod
     def _extract_tsi_cbkey(tsi):
         assert(isinstance(tsi, dnf.transaction.TransactionItem))
         return tsi.active, tsi.active_history_state, tsi
 
-    def _extract_str_cbkey(self, name):
-        assert(isinstance(name, basestring))
+    def _match_tsi(self):
+        te = self._current_te
         obsoleted = obsoleted_state = obsoleted_tsi = None
         for tsi in self.base.transaction:
             # only walk the tsis once. prefer finding an erase over an obsoleted
             # package:
-            if tsi.erased is not None and tsi.erased.name == name:
+            if tsi.erased is not None and str(tsi.erased) == te.NEVRA():
                 return tsi.erased, tsi.erased_history_state, tsi
             for o in tsi.obsoleted:
-                if o.name == name:
+                if str(o) == te.NEVRA():
                     obsoleted = o
                     obsoleted_state = tsi.obsoleted_history_state
                     obsoleted_tsi = tsi
@@ -510,7 +510,7 @@ class RPMTransaction(object):
         pass
 
     def _unInstStop(self, bytes, total, h):
-        pkg, state, _ = self._extract_str_cbkey(h)
+        pkg, state, _ = self._match_tsi()
         self.total_removed += 1
         self.complete_actions += 1
         if state == 'Obsoleted':
