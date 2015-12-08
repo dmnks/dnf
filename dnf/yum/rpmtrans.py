@@ -226,33 +226,31 @@ class RPMTransaction(object):
     def __del__(self):
         self._shutdownOutputLogging()
 
-    def _extract_cbkey(self, cbkey):
+    def _cb_package(self, cbkey):
+        """Obtain the package corresponding to the calling callback."""
         if isinstance(cbkey, dnf.transaction.TransactionItem):
-            return self._extract_tsi_cbkey(cbkey)
+            # Easy, tsi is provided by the callback (only happens on installs)
+            tsi = cbkey
+            pkg = tsi.active
+            state = tsi.active_history_state
         else:
-            return self._cb_package
-
-    @staticmethod
-    def _extract_tsi_cbkey(tsi):
-        assert(isinstance(tsi, dnf.transaction.TransactionItem))
-        return tsi.active, tsi.active_history_state, tsi
-
-    @property
-    def _cb_package(self):
-        """Look up the package corresponding to the calling callback."""
-        te = self._te_list[self._te_index]
-        obsoleted = obsoleted_state = obsoleted_tsi = None
-        for tsi in self.base.transaction:
-            # only walk the tsis once. prefer finding an erase over an obsoleted
-            # package:
-            if tsi.erased is not None and str(tsi.erased) == te.NEVRA():
-                return tsi.erased, tsi.erased_history_state, tsi
-            for o in tsi.obsoleted:
-                if str(o) == te.NEVRA():
-                    obsoleted = o
-                    obsoleted_state = tsi.obsoleted_history_state
-                    obsoleted_tsi = tsi
-        return obsoleted, obsoleted_state, obsoleted_tsi
+            # We don't have the tsi, let's look it up (only happens on
+            # erasures)
+            te = self._te_list[self._te_index]
+            pkg = state = tsi = None
+            for tsi in self.base.transaction:
+                # only walk the tsis once. prefer finding an erase over an
+                # obsoleted package:
+                if tsi.erased is not None and str(tsi.erased) == te.NEVRA():
+                    pkg = tsi.erased
+                    state = tsi.erased_history_state
+                    break
+                for o in tsi.obsoleted:
+                    if str(o) == te.NEVRA():
+                        pkg = o
+                        state = tsi.obsoleted_history_state
+                        break
+        return pkg, state, tsi
 
     def _fn_rm_installroot(self, filename):
         """ Remove the installroot from the filename. """
@@ -463,7 +461,7 @@ class RPMTransaction(object):
 
     def _instOpenFile(self, bytes, total, h):
         self.lastmsg = None
-        pkg, _, _ = self._extract_tsi_cbkey(h)
+        pkg, _, _ = self._cb_package(h)
         rpmloc = pkg.localPkg()
         try:
             self.fd = open(rpmloc)
@@ -478,7 +476,7 @@ class RPMTransaction(object):
             return self.fd.fileno()
 
     def _instCloseFile(self, bytes, total, h):
-        pkg, state, tsi = self._extract_tsi_cbkey(h)
+        pkg, state, tsi = self._cb_package(h)
         self.fd.close()
         self.fd = None
 
@@ -501,7 +499,7 @@ class RPMTransaction(object):
                 display.progress(None, action, None, None, None, None)
 
     def _instProgress(self, bytes, total, h):
-        pkg, _, tsi = self._extract_tsi_cbkey(h)
+        pkg, _, tsi = self._cb_package(h)
         action = TransactionDisplay.ACTION_FROM_OP_TYPE[tsi.op_type]
         for display in self.displays:
             display.progress(
@@ -515,7 +513,7 @@ class RPMTransaction(object):
         pass
 
     def _unInstStop(self, bytes, total, h):
-        pkg, state, _ = self._cb_package
+        pkg, state, _ = self._cb_package(h)
         self.total_removed += 1
         self.complete_actions += 1
         if state == 'Obsoleted':
@@ -554,13 +552,13 @@ class RPMTransaction(object):
 
     def _cpioError(self, bytes, total, h):
         # In the case of a remove, we only have a name, not a tsi:
-        pkg, _, _ = self._extract_cbkey(h)
+        pkg, _, _ = self._cb_package(h)
         msg = "Error in cpio payload of rpm package %s" % pkg
         for display in self.displays:
             display.error(msg)
 
     def _unpackError(self, bytes, total, h):
-        pkg, _, _ = self._extract_cbkey(h)
+        pkg, _, _ = self._cb_package(h)
         msg = "Error unpacking rpm package %s" % pkg
         for display in self.displays:
             display.error(msg)
@@ -570,7 +568,7 @@ class RPMTransaction(object):
         # "total" carries fatal/non-fatal status
         scriptlet_name = rpm.tagnames.get(bytes, "<unknown>")
 
-        pkg, _, _ = self._extract_cbkey(h)
+        pkg, _, _ = self._cb_package(h)
         name = pkg.name
 
         if total:
