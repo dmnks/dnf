@@ -169,6 +169,9 @@ class RPMTransaction(object):
 
         self._setupOutputLogging(base.conf.rpmverbosity)
         self._ts_done = None
+        self._te_erasing = None
+        self._erase_iter = []
+        self._skip_erase = []
 
     def _fdSetCloseOnExec(self, fd):
         """ Set the close on exec. flag for a filedescriptor. """
@@ -235,14 +238,15 @@ class RPMTransaction(object):
 
     def _extract_str_cbkey(self, name):
         assert(isinstance(name, basestring))
+        te = self._te_erasing
         obsoleted = obsoleted_state = obsoleted_tsi = None
         for tsi in self.base.transaction:
             # only walk the tsis once. prefer finding an erase over an obsoleted
             # package:
-            if tsi.erased is not None and tsi.erased.name == name:
+            if tsi.erased is not None and str(tsi.erased) == te.NEVRA():
                 return tsi.erased, tsi.erased_history_state, tsi
             for o in tsi.obsoleted:
-                if o.name == name:
+                if str(o) == te.NEVRA():
                     obsoleted = o
                     obsoleted_state = tsi.obsoleted_history_state
                     obsoleted_tsi = tsi
@@ -408,11 +412,14 @@ class RPMTransaction(object):
         elif what == rpm.RPMCALLBACK_TRANS_STOP:
             self._transStop( bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_OPEN_FILE:
+            print('*** inst_open_file ***', str(h.active))
             return self._instOpenFile( bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_CLOSE_FILE:
             self._instCloseFile(  bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_PROGRESS:
             self._instProgress( bytes, total, h )
+        elif what == rpm.RPMCALLBACK_INST_STOP:
+            self._instStop(bytes, total, h)
         elif what == rpm.RPMCALLBACK_UNINST_START:
             self._unInstStart( bytes, total, h )
         elif what == rpm.RPMCALLBACK_UNINST_PROGRESS:
@@ -426,12 +433,15 @@ class RPMTransaction(object):
         elif what == rpm.RPMCALLBACK_SCRIPT_ERROR:
             self._scriptError(bytes, total, h)
         elif what == rpm.RPMCALLBACK_SCRIPT_START:
+            print('*** script_start ***', h)
             self._scriptStart(bytes, total, h)
         elif what == rpm.RPMCALLBACK_SCRIPT_STOP:
             self._scriptStop(bytes, total, h);
 
 
     def _transStart(self, bytes, total, h):
+        self._erase_iter = iter([te for te in self.base.ts if te.Type() == rpm.TR_REMOVED])
+        print([te.NEVRA() for te in self.base.ts])
         self.total_actions = total
         if self.test: return
         self.trans_running = True
@@ -447,7 +457,10 @@ class RPMTransaction(object):
 
     def _instOpenFile(self, bytes, total, h):
         self.lastmsg = None
-        pkg, _, _ = self._extract_tsi_cbkey(h)
+        pkg, _, tsi = self._extract_tsi_cbkey(h)
+        if tsi.op_type in [dnf.transaction.UPGRADE, dnf.transaction.DOWNGRADE] and not self.test:
+            self._skip_erase.append(str(tsi.erased))
+            print('*** _skip_erase', self._skip_erase)
         rpmloc = pkg.localPkg()
         try:
             self.fd = open(rpmloc)
@@ -492,8 +505,16 @@ class RPMTransaction(object):
                 pkg, action, bytes, total, self.complete_actions,
                 self.total_actions)
 
+    def _instStop(self, bytes, total, h):
+        self._skip_erase.pop()
+        print('*** _skip_erase', self._skip_erase)
+
     def _unInstStart(self, bytes, total, h):
-        pass
+        te = None
+        while te is None or te.NEVRA() in self._skip_erase:
+            te = next(self._erase_iter)
+        self._te_erasing = te
+        print('*** _te_erasing', self._te_erasing.NEVRA(), h)
 
     def _unInstProgress(self, bytes, total, h):
         pass
