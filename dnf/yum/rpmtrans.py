@@ -169,6 +169,15 @@ class RPMTransaction(object):
 
         self._setupOutputLogging(base.conf.rpmverbosity)
         self._ts_done = None
+        # Currently processed erasure element
+        self._erase_id = -1
+        # List of replacement tsis which didn't succeed
+        self._erase_skip = []
+        self._erase_queue = []
+        # Is the currently processed tsi a replacement operation?
+        self._replacing = False
+        # Did a PREIN script run for the current erasure?
+        self._preun = False
 
     def _fdSetCloseOnExec(self, fd):
         """ Set the close on exec. flag for a filedescriptor. """
@@ -235,14 +244,17 @@ class RPMTransaction(object):
 
     def _extract_str_cbkey(self, name):
         assert(isinstance(name, basestring))
+        te = self._erase_queue[self._erase_id]
         obsoleted = obsoleted_state = obsoleted_tsi = None
         for tsi in self.base.transaction:
             # only walk the tsis once. prefer finding an erase over an obsoleted
             # package:
-            if tsi.erased is not None and tsi.erased.name == name:
+            if tsi in self._erase_skip:
+                continue
+            if tsi.erased is not None and str(tsi.erased) == te.NEVRA():
                 return tsi.erased, tsi.erased_history_state, tsi
             for o in tsi.obsoleted:
-                if o.name == name:
+                if str(o) == te.NEVRA():
                     obsoleted = o
                     obsoleted_state = tsi.obsoleted_history_state
                     obsoleted_tsi = tsi
@@ -411,6 +423,8 @@ class RPMTransaction(object):
             return self._instOpenFile( bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_CLOSE_FILE:
             self._instCloseFile(  bytes, total, h )
+        elif what == rpm.RPMCALLBACK_INST_STOP:
+            self._instStop(  bytes, total, h )
         elif what == rpm.RPMCALLBACK_INST_PROGRESS:
             self._instProgress( bytes, total, h )
         elif what == rpm.RPMCALLBACK_UNINST_START:
@@ -437,6 +451,8 @@ class RPMTransaction(object):
         self.trans_running = True
         self.ts_all() # write out what transaction will do
         self.ts_done_open()
+        self._erase_queue = [te for te in self.base.ts
+                             if te.Type() == rpm.TR_REMOVED]
 
     def _transProgress(self, bytes, total, h):
         pass
@@ -447,7 +463,9 @@ class RPMTransaction(object):
 
     def _instOpenFile(self, bytes, total, h):
         self.lastmsg = None
-        pkg, _, _ = self._extract_tsi_cbkey(h)
+        pkg, _, tsi = self._extract_tsi_cbkey(h)
+        if tsi.op_type in [dnf.transaction.UPGRADE, dnf.transaction.DOWNGRADE]:
+            self._replacing = True
         rpmloc = pkg.localPkg()
         try:
             self.fd = open(rpmloc)
@@ -461,6 +479,9 @@ class RPMTransaction(object):
                 self.installed_pkg_names.add(pkg.name)
             return self.fd.fileno()
 
+    def _instStop(self, bytes, total, h):
+        self._replacing = False
+
     def _instCloseFile(self, bytes, total, h):
         pkg, state, tsi = self._extract_tsi_cbkey(h)
         self.fd.close()
@@ -468,6 +489,9 @@ class RPMTransaction(object):
 
         if self.test or not self.trans_running:
             return
+
+        if self._replacing:
+            self._erase_skip.append(tsi)
 
         action = TransactionDisplay.ACTION_FROM_OP_TYPE[tsi.op_type]
         for display in self.displays:
@@ -493,7 +517,9 @@ class RPMTransaction(object):
                 self.total_actions)
 
     def _unInstStart(self, bytes, total, h):
-        pass
+        if not self._preun:
+            self._erase_id += 1
+        self._preun = False
 
     def _unInstProgress(self, bytes, total, h):
         pass
@@ -567,7 +593,10 @@ class RPMTransaction(object):
             display.error(msg)
 
     def _scriptStart(self, bytes, total, h):
-        pass
+        scriptlet_name = rpm.tagnames.get(bytes, "<unknown>")
+        if scriptlet_name == 'PREUN':
+            self._erase_id += 1
+            self._preun = True
 
     def _scriptStop(self, bytes, total, h):
         self._scriptout()
