@@ -1,8 +1,7 @@
-#!/bin/bash 
+#!/usr/bin/python
 # The yum executable redirecting to dnf from dnf-yum compatible package.
-# This is shell script and not python script to avoid python2/3 conflicts.
 #
-# Copyright (C) 2015 Red Hat, Inc.
+# Copyright (C) 2016 Red Hat, Inc.
 #
 # This copyrighted material is made available to anyone wishing to use,
 # modify, copy, or redistribute it subject to the terms and conditions of
@@ -19,11 +18,4 @@
 # Red Hat, Inc.
 #
 
-executable="/usr/bin/dnf"
-msg="Yum command has been deprecated, redirecting to '$executable $@'.\n"\
-"See 'man dnf' and 'man yum2dnf' for more information.\n"\
-"To transfer transaction metadata from yum to DNF, run:\n"\
-"'dnf install python-dnf-plugins-extras-migrate && dnf-2 migrate'\n"
 
-echo -e $msg >&2
-exec $executable "$@"
