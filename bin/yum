@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # The yum executable redirecting to dnf from dnf-yum compatible package.
 #
 # Emulates yum behavior as much as possible by translating commonly used yum
