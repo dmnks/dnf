@@ -1,6 +1,10 @@
 #!/usr/bin/python
 # The yum executable redirecting to dnf from dnf-yum compatible package.
 #
+# Emulates yum behavior as much as possible by translating commonly used yum
+# commands to their closest dnf counterparts or setting up some cmdline
+# options.
+#
 # Copyright (C) 2016 Red Hat, Inc.
 #
 # This copyrighted material is made available to anyone wishing to use,
