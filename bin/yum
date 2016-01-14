@@ -22,4 +22,54 @@
 # Red Hat, Inc.
 #
 
+import sys
 
+from dnf.cli import main
+
+
+# ================
+# Argument filters
+# ================
+
+def deprecate(cmd, prec, succ):
+    """Filter deprecated commands."""
+    if cmd == 'update':
+        return prec + ['upgrade'] + succ
+
+
+# Argument filters to apply (in the given order)
+filters = [deprecate]
+
+
+# ==============
+# Main functions
+# ==============
+
+def filter_args(args):
+    """Apply the filters to args and return the resulting list."""
+
+    def cmd_index(args):
+        """Return the index in args of the yum command used."""
+        for i, arg in enumerate(args):
+            if not arg.startswith('-'):
+                return i
+        return None
+
+    for filter in filters:
+        i = cmd_index(args)
+        if i is not None:
+            cmd = args[i]
+            prec = args[:i]
+            succ = args[(i + 1):]
+        else:
+            cmd = None
+            prec = args
+            succ = None
+        args = filter(cmd, prec, succ)
+
+    return args
+
+
+if __name__ == '__main__':
+    args = filter_args(sys.argv[1:])
+    main.user_main(args, exit_code=True)
