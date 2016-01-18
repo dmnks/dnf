@@ -55,11 +55,15 @@ dependency like libcomps::
  Building and installing rpm
 =============================
 
-From the DNF git checkout directory::
+Install tito::
+
+    sudo dnf install tito
+
+Then, run this from the DNF git checkout directory to build and install the
+current git HEAD::
     
-    cmake .
-    ./package/build-test-rpm
-    sudo rpm -i ~/rpmbuild/RPMS/noarch/dnf-<version>-<release>.noarch.rpm
+    tito build --rpm --offline --test
+    sudo rpm -i /tmp/tito/noarch/dnf*.rpm
 
 ===============
  Running tests
