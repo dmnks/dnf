@@ -24,7 +24,9 @@ import sys
 here = sys.path[0]
 if here != '/usr/bin':
     # git checkout
-    sys.path[0] = '@CMAKE_SOURCE_DIR@'
+    srcdir = '@CMAKE_SOURCE_DIR@'
+    sys.path[0] = srcdir
+    sys.argv.append('%s/etc/dnf/automatic.conf' % srcdir)
 
 import dnf.automatic.main
 sys.exit(dnf.automatic.main.main(sys.argv[1:]))
