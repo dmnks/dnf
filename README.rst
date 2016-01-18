@@ -35,7 +35,11 @@ From the DNF git checkout directory::
 
 Then to run DNF::
 
-    PYTHONPATH=`readlink -f .` bin/dnf <arguments>
+    build/bin/dnf <arguments>
+
+To build DNF for Python 3, use this option::
+
+    cmake -DPYTHON_DESIRED:str=3 ..
 
 =============================
  Building and installing rpm
