@@ -18,6 +18,10 @@ else()
 	FIND_PACKAGE(PythonInterp 3.0 REQUIRED)
 endif()
 
+if (DEV)
+    SET(GIT_SOURCE ${CMAKE_SOURCE_DIR})
+endif()
+
 EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c "from sys import stdout; from distutils import sysconfig; stdout.write(sysconfig.get_python_lib())" OUTPUT_VARIABLE PYTHON_INSTALL_DIR)
 EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c "import sys; sys.stdout.write('%s.%s' % (sys.version_info.major, sys.version_info.minor))" OUTPUT_VARIABLE PYTHON_MAJOR_DOT_MINOR_VERSION)
 MESSAGE(STATUS "Python install dir is ${PYTHON_INSTALL_DIR}")
@@ -30,4 +34,6 @@ ADD_SUBDIRECTORY (po)
 ENABLE_TESTING()
 ADD_SUBDIRECTORY (tests)
 
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/bin/dnf.in ${CMAKE_BINARY_DIR}/bin/dnf @ONLY)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/bin/dnf-automatic.in ${CMAKE_BINARY_DIR}/bin/dnf-automatic @ONLY)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/dnf/const.py.in ${CMAKE_SOURCE_DIR}/dnf/const.py @ONLY)
