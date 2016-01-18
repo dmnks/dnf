@@ -30,7 +30,7 @@ From the DNF git checkout directory::
 
     mkdir build;
     pushd build;
-    cmake .. && make;
+    cmake -DCHECKOUT=ON .. && make;
     popd;
 
 Then to run DNF::
