@@ -25,6 +25,7 @@ devsrc = '@GIT_SOURCE@'
 if devsrc:
     # Devel mode: use the git checkout
     sys.path[0] = devsrc
+    sys.argv.append('%s/etc/dnf/automatic.conf' % devsrc)
 
 import dnf.automatic.main
 sys.exit(dnf.automatic.main.main(sys.argv[1:]))

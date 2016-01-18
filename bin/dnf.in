@@ -50,7 +50,23 @@ if __name__ != "__main__":
 devsrc = '@GIT_SOURCE@'
 if devsrc:
     # Devel mode: use the git checkout
-    sys.path[0] = devsrc
+
+    import shlex
+
+    plugpath = '@PLUGINPATH@'
+    addpath = '@PYTHONPATH@'
+
+    path = [devsrc]
+    opts = ['-c "%s/etc/dnf/dnf.conf"' % devsrc]
+    if plugpath:
+        path.extend(plugpath.split(':'))
+        opts.append('--setopt pluginpath="%s"' % plugpath.replace(':', ' '))
+    if addpath:
+        path.extend(addpath.split(':'))
+    args = shlex.split(' '.join(opts))
+
+    sys.path[0:1] = path
+    sys.argv.extend(args)
 
 from dnf.cli import main
 main.user_main(sys.argv[1:], exit_code=True)

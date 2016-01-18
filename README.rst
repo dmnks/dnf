@@ -41,6 +41,16 @@ To build DNF for Python 3, use this option::
 
     cmake -DPYTHON_DESIRED:str=3 ..
 
+If you're also developing some plugins, you can make your DNF build aware of
+them by using the following option when building::
+
+    cmake -DPLUGINPATH="/path/to/plugins:/another/one" ..
+
+You can also extend the default PYTHONPATH to make DNF use your checkout of a
+dependency like libcomps::
+
+    cmake -DPYTHONPATH="/path/to/libcomps/build:/something/else" ..
+
 =============================
  Building and installing rpm
 =============================
