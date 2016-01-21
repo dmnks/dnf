@@ -22,7 +22,7 @@ from __future__ import unicode_literals
 import sys
 
 
-SOURCE_DIR = '@DEV_SOURCE_DIR@'
+CHECKOUT = '@CHECKOUT@'
 
 
 def suppress_keyboard_interrupt_message():
@@ -50,9 +50,10 @@ if __name__ != "__main__":
     sys.stderr.write('The executable DNF module must not be imported.')
     sys.exit(1)
 
-if SOURCE_DIR:
-    # git checkout
-    sys.path[0] = SOURCE_DIR
+if CHECKOUT == 'ON':
+    # Use the build tree
+    import os
+    sys.path[0] = os.path.dirname(sys.path[0])
 
 from dnf.cli import main
 main.user_main(sys.argv[1:], exit_code=True)

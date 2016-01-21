@@ -1,0 +1,4 @@
+# Wrapper for dnf/__init__.py for use with out of source builds
+SOURCE_DIR = '@CMAKE_SOURCE_DIR@'
+__path__.append(SOURCE_DIR)  # noqa
+execfile(SOURCE_DIR + '/dnf/__init__.py')

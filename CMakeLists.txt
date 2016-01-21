@@ -7,7 +7,6 @@ if (NOT PYTHON_DESIRED)
     set (PYTHON_DESIRED "2")
 endif()
 
-SET( SYSCONFDIR /etc)
 SET( SYSTEMD_DIR /usr/lib/systemd/system)
 
 if (${PYTHON_DESIRED} STREQUAL "2")
@@ -18,14 +17,31 @@ else()
 	FIND_PACKAGE(PythonInterp 3.0 REQUIRED)
 endif()
 
-OPTION(DEV_MODE "Configure DNF to work from the build tree" OFF)
-if (DEV_MODE)
-    SET(DEV_SOURCE_DIR ${CMAKE_SOURCE_DIR})
-endif()
-
 EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c "from sys import stdout; from distutils import sysconfig; stdout.write(sysconfig.get_python_lib())" OUTPUT_VARIABLE PYTHON_INSTALL_DIR)
 EXECUTE_PROCESS(COMMAND ${PYTHON_EXECUTABLE} -c "import sys; sys.stdout.write('%s.%s' % (sys.version_info.major, sys.version_info.minor))" OUTPUT_VARIABLE PYTHON_MAJOR_DOT_MINOR_VERSION)
 MESSAGE(STATUS "Python install dir is ${PYTHON_INSTALL_DIR}")
+
+OPTION(DEVELOP "Configure DNF to make it run from an out of source build" OFF)
+if (DEVELOP)
+    CONFIGURE_FILE(
+        ${CMAKE_SOURCE_DIR}/scripts/
+        ${CMAKE_BINARY_DIR}/dnf/__init__.py @ONLY
+    )
+    SET(CUSTOM_PYTHON_PATH ${CMAKE_BINARY_DIR})
+    if (PYTHONPATH)
+        SET(CUSTOM_PYTHON_PATH ${CUSTOM_PYTHON_PATH}:${PYTHONPATH})
+    endif()
+    if (PLUGINPATH)
+        SET(CUSTOM_PYTHON_PATH ${CUSTOM_PYTHON_PATH}:${PLUGINPATH})
+    endif()
+    SET(SYSCONFDIR ${CMAKE_BINARY_DIR}/etc)
+else()
+    SET(SYSCONFDIR /etc)
+endif()
+
+if (NOT PLUGINPATH)
+    SET(PLUGINPATH ${PYTHON_INSTALL_DIR}/dnf-plugins)
+endif()
 
 ADD_SUBDIRECTORY (dnf)
 ADD_SUBDIRECTORY (bin)
@@ -37,4 +53,4 @@ ADD_SUBDIRECTORY (tests)
 
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/bin/dnf.in ${CMAKE_BINARY_DIR}/bin/dnf @ONLY)
 CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/bin/dnf-automatic.in ${CMAKE_BINARY_DIR}/bin/dnf-automatic @ONLY)
-CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/dnf/const.py.in ${CMAKE_SOURCE_DIR}/dnf/const.py @ONLY)
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/dnf/const.py.in ${CMAKE_BINARY_DIR}/dnf/const.py @ONLY)
