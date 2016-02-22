@@ -15,10 +15,16 @@
 # Red Hat, Inc.
 #
 
+import os
+import sys
 import unittest
-import imp
 
-yum = imp.load_source('yum', 'bin/yum')
+# Import the yum binary via the symlink since the binary doesn't have the .py
+# extension.  Also ensure that, if the symlink breaks, the import won't
+# fallback to a cached version.
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(__file__))
+from . import yum
 
 
 def translates(before, after):
