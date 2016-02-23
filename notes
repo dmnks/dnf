@@ -1,0 +1,2 @@
+* can't parse the cli manually due to duplicate logic with dnf/yum
+* can't use yum cli parser due to deps
