@@ -1017,11 +1017,6 @@ class CountMeCommand(Command):
     aliases = ('countme',)
     summary = _('checks in this system with the repositories for statistical purposes')
 
-    def configure(self):
-        demands = self.cli.demands
-        demands.available_repos = True
-        demands.sack_activation = True
-
     def run(self):
         for repo in self.base.repos.iter_enabled():
             repo.check_in()

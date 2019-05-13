@@ -547,28 +547,33 @@ Countme Command
 ---------------
 
 ``dnf countme``
-    Performs a "check-in" on behalf of this system with the servers of all the
-    enabled repositories, for statistical purposes.
+    When run without arguments, performs a "check-in" with selected
+    repositories (listed in the :ref:`countme <countme-label>` config option)
+    on behalf of this machine, for statistical purposes.
 
-    The check-in is anonymous and consists of sending an HTTP request for the
-    configured metalink URL with a special boolean parameter added to indicate
-    the intent of this system to be counted in (assuming the server supports
-    that).
-    No additional data is included with the request, other than the usual such
-    as the User-Agent header (see the :ref:`user_agent <user_agent-label>`
-    configuration option).
+    The check-in is anonymous and consists of sending an HTTP GET request for
+    the metalink URL (if configured) with a special parameter added that
+    carries the age of this installation (number of weeks since the first
+    bootup).
+    No additional data is included with the request (other than the usual such
+    as :ref:`user_agent <user_agent-label>`).
 
-    The check-in will be performed at most once per week (starting every Monday
-    at 00:00 UTC), regardless of how often this command is executed.
-    This is to allow for accumulating weekly metrics on the servers without the
-    same systems being counted multiple times.
+    In order to provide useful metrics, this command should be run
+    periodically.
+    For this purpose, DNF ships with a systemd timer that is enabled by default
+    and expires hourly.
+    You can disable it by running `systemctl disable dnf-countme.timer`.
 
-    In order to provide helpful metrics, this command should be executed on a
-    weekly basis (such as from a systemd timer).
+    Regardless of how often this command is run, only one check-in will be
+    performed within the same time window that starts every Monday at 12:00 AM UTC and
+    lasts for 7 days.
+    This allows for collecting weekly metrics without overcount.
 
-    This command will have no effect on those repositories that have the
-    :ref:`countme <countme-label>` configuration option set to 0 (the option
-    can also be used globally).
+    To prevent leakage of system-specific usage patterns that could be used to
+    track this system over multiple windows (such as automatic cache updates at
+    a regular time of day), a check-in may only occur within specific time
+    slots that are randomly distributed across every new window.
+    If this command is run outside of such a slot, it does nothing.
 
 .. _distro_sync_command-label:
 
